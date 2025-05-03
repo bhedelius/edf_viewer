@@ -1,7 +1,8 @@
-# callbacks.py
+from datetime import datetime
 
 import plotly.graph_objs as go
 from dash import Input, Output, callback, html, set_props
+
 
 from edf_viewer.models.edf_models import Experiment, SignalMetadata
 
@@ -29,25 +30,38 @@ def handle_error(err: Exception):
     prevent_initial_call=True,
     on_error=handle_error,
 )
-def on_file_upload(uploaded_file: str):
-    """Upload a new EDF file and populate dropdowns."""
+def on_file_upload(uploaded_file: str) -> tuple:
+    """
+    Handles the upload of an EDF file and initializes UI elements with its data.
+
+    Args:
+        uploaded_file (str): The base64-encoded contents of the uploaded EDF file.
+
+    Returns:
+        tuple: A tuple containing:
+            - list[dict]: Dropdown options for data records (label and value pairs).
+            - int | None: Default selected data record index.
+            - list[dict]: Dropdown options for signal selections.
+            - int | None: Default selected signal index.
+            - list[html.P]: Formatted file metadata paragraphs.
+            - str: The raw base64 content string used to re-parse the EDF file later.
+
+    Raises:
+        ValueError: If no uploaded file is found or the content string is malformed.
+    """
 
     if uploaded_file is None:
         raise ValueError("No uploaded file found.")
 
     # Decode the uploaded file
     _, content_string = uploaded_file.split(",", 1)
-    experiment = Experiment.from_upload(
-        content_string
-    )  # Load the experiment object once
+    experiment = Experiment.from_upload(content_string)  # Load the experiment object once
 
     # Create dropdown options
-    data_record_options = [
-        {"label": f"Record {i}", "value": i} for i in range(len(experiment.records))
-    ]
+    data_record_options = [{"label": f"Record {i}", "value": i} for i in range(experiment.num_data_records)]
     signal_options = [
         {"label": sm.label, "value": i}
-        for i, sm in enumerate(experiment.header.signal_metadatas)
+        for i, sm in enumerate(experiment.signal_metadatas)
         if not sm.label.startswith("EDF Annotations")
     ]
 
@@ -56,18 +70,19 @@ def on_file_upload(uploaded_file: str):
     signal_value = signal_options[0]["value"] if signal_options else None
 
     # Prepare metadata
-    file_metadata = experiment.header.file_metadata
+    file_metadata = experiment.file_metadata
+    dt_str = f"{file_metadata.start_date} {file_metadata.start_time}"
+    dt = datetime.strptime(dt_str, "%d.%m.%y %H.%M.%S")
+    formatted_date = dt.strftime("%B %-d, %Y")  # American-style date (e.g., "April 15, 2025")
+    formatted_time = dt.strftime("%-I:%M:%S %p")
     metadata_tuple = (
         f"Patient ID: {file_metadata.patient_id}",
         f"Recording ID: {file_metadata.recording_id}",
-        f"Start date (dd.mm.yy): {file_metadata.start_date}",
-        f"Start time (hh.mm.ss): {file_metadata.start_time}",
+        f"Start date: {formatted_date}",
+        f"Start time: {formatted_time}",
     )
     metadata = [
-        html.P(
-            line.rstrip(), style={"margin": "0", "padding": "0", "line-height": "1.2"}
-        )
-        for line in metadata_tuple
+        html.P(line.rstrip(), style={"margin": "0", "padding": "0", "line-height": "1.2"}) for line in metadata_tuple
     ]
 
     return (
@@ -84,70 +99,77 @@ def on_file_upload(uploaded_file: str):
     [
         Output("signal-plot", "figure"),
         Output("signal-metadata", "children"),
-        Output("signal-annotations", "children"),
+        # Output("signal-annotations", "children"),  # TODO: Update this
     ],
     Input("data-record-dropdown", "value"),
     Input("signal-dropdown", "value"),
     Input("edf-store", "data"),
 )
 def update_plot_and_metadata(
-    data_record_index: int | None,
+    data_record_indexes: list[int] | int,
     signal_index: int | None,
     content_string: str,
 ):
     """
-    Update the plot, metadata, and annotations based on the selected data record and signal.
+    Update the plot and metadata based on the selected data record and signal.
 
     Args:
-        data_record_index (int | None): The index of the selected data record. If `None`,
-            no update is made.
+        data_record_indexes (list[int] | int): The index or indices of the selected data
+            record(s). If multiple records are selected, they are provided as a list.
+            If a single record is selected, it is provided as an integer.
         signal_index (int | None): The index of the selected signal. If `None`, no update
-            is made.
-        content_string (str | None): The content string representing the uploaded EDF file.
-                If `None`, the function returns no updates.
+            is made, and the function returns no updates.
+        content_string (str): The content string representing the uploaded EDF file.
+            This is the base64-encoded file that was uploaded and is required to extract
+            signal data.
 
     Returns:
         tuple: A tuple containing:
-            - A Plotly figure for the selected signal, or an empty figure if no valid data is available.
-            - A list of HTML paragraphs containing metadata for the selected signal.
-            - A string of annotations associated with the selected signal or a default message if no annotations are available.
+            - figure (plotly.graph_objects.Figure): The Plotly figure displaying the signal
+              plot for the selected data record(s).
+            - metadata (list[html.P]): A list of HTML paragraphs containing metadata for
+              the selected signal, such as transducer type, prefiltering, and reserved fields.
 
-    Notes:
-        - If any of the input values are `None` or the `experiment` object cannot be loaded,
-          the function will return default values (empty plot, message prompting user to select a signal, and a default annotation message).
+    Raises:
+        ValueError: If no signal is selected or if the content string is `None`.
     """
     if content_string is None:
         raise ValueError("No experimental data found.")
-    if data_record_index is None:
-        raise ValueError("No data record selected")
     if signal_index is None:
         raise ValueError("No signal selected")
+    if isinstance(data_record_indexes, int):
+        data_record_indexes = [data_record_indexes]
 
     # Load the experiment object
     experiment = Experiment.from_upload(content_string)
 
     # Extract data record and signal information
-    data_record = experiment.records[data_record_index]
-    signal_values = data_record.signal_samples[signal_index]
+    time_series = experiment.get_time_series(signal_index)
+    signal_values = experiment.get_signals(data_record_indexes, signal_index)
 
     # Create a plot for the selected signal
-    signal_metadata: SignalMetadata = experiment.header.signal_metadatas[signal_index]
+    traces = [
+        go.Scatter(
+            x=time_series,
+            y=signal_values[i],  # Select the signal values for this data record
+            mode="lines",  # Use lines to connect the points
+            name=f"Data Record {data_record_indexes[i]}",  # Use the data record index as the legend name
+        )
+        for i in range(signal_values.shape[0])  # Loop over the data record dimension
+    ]
+    signal_metadata: SignalMetadata = experiment.signal_metadatas[signal_index]
     figure = go.Figure(
-        data=[
-            go.Scatter(
-                x=list(range(len(signal_values))),
-                y=scale_signal_to_physical(
-                    signal_values,
-                    signal_metadata,
-                ),
-            )
-        ],
+        data=traces,
         layout={
             "title": {
                 "text": f"Signal: {signal_metadata.label.rstrip()}",
                 "x": 0.5,
             },
+            "xaxis_title": "time (sec)",
             "yaxis_title": f"Amplitude ({signal_metadata.physical_dimension.rstrip()})",
+            "legend": {
+                "title": "Data Records",
+            },
         },
     )
 
@@ -158,41 +180,7 @@ def update_plot_and_metadata(
         f"Reserved: {signal_metadata.reserved}",
     )
     metadata = [
-        html.P(
-            line.rstrip(), style={"margin": "0", "padding": "0", "line-height": "1.2"}
-        )
-        for line in metadata_tuple
+        html.P(line.rstrip(), style={"margin": "0", "padding": "0", "line-height": "1.2"}) for line in metadata_tuple
     ]
 
-    return figure, metadata, data_record.annotations
-
-
-def scale_signal_to_physical(
-    signal_values: list[int],
-    signal_metadata: SignalMetadata,
-):
-    """
-    Scales digital signal values to their corresponding physical values using metadata.
-
-    Args:
-        signal_values (list[int]): A list of digital signal values (as integers) to be scaled.
-        signal_metadata (SignalMetadata): Metadata containing the signal's digital and physical
-            minimum and maximum values.
-
-    Returns:
-        list[float]: A list of scaled physical signal values corresponding to the input digital
-            signal values.
-    """
-    # Convert min/max values once to floats
-    digital_min = float(signal_metadata.digital_min)
-    digital_max = float(signal_metadata.digital_max)
-    physical_min = float(signal_metadata.physical_min)
-    physical_max = float(signal_metadata.physical_max)
-
-    # Calculate the scaling factor (physical range / digital range)
-    scale_factor = (physical_max - physical_min) / (digital_max - digital_min)
-
-    # Return scaled signal values
-    return [
-        physical_min + (value - digital_min) * scale_factor for value in signal_values
-    ]
+    return figure, metadata

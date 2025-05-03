@@ -2,7 +2,7 @@ import dash
 import dash_bootstrap_components as dbc
 from dash import dcc, html
 
-from edf_viewer.callbacks import on_file_upload  # noqa: F401
+from edf_viewer.callbacks import on_file_upload, update_plot_and_metadata  # noqa: F401 these are used implicitly
 
 
 def start_app(port: int = 8050, debug: bool = False):
@@ -25,19 +25,19 @@ def start_app(port: int = 8050, debug: bool = False):
 
     app.layout = html.Div(
         style={
-            "maxWidth": "1000px",  # Maintain max width for a more compact layout
+            "maxWidth": "1000px",
             "margin": "0 auto",
-            "padding": "15px",  # Reduced padding
+            "padding": "15px",
             "fontFamily": "Arial, sans-serif",
-            "fontSize": "1em",  # Set a larger base font size for improved readability
+            "fontSize": "1em",
         },
         children=[
             dbc.Alert(
                 id="error-alert",
-                color="danger",  # You can choose 'danger' for error, 'warning' for warnings, etc.
+                color="danger",
                 children="An error occurred.",
-                is_open=False,  # Initially closed
-                duration=5000,  # Optional: automatically hide after 5 seconds
+                is_open=False,
+                duration=5000,
             ),
             dcc.Store(id="edf-store"),
             dcc.Store(id="experiment-store", storage_type="memory"),
@@ -47,7 +47,7 @@ def start_app(port: int = 8050, debug: bool = False):
                     "textAlign": "center",
                     "marginBottom": "20px",
                     "fontSize": "2em",
-                },  # Larger title
+                },
             ),
             # Upload + Dropdowns
             html.Div(
@@ -63,7 +63,7 @@ def start_app(port: int = 8050, debug: bool = False):
                             children=html.Button(
                                 "Upload EDF File",
                                 style={"padding": "10px 20px", "fontSize": "16px"},
-                            ),  # Slightly larger button text
+                            ),
                             multiple=False,
                         ),
                         style={"width": "30%", "textAlign": "center"},
@@ -76,12 +76,13 @@ def start_app(port: int = 8050, debug: bool = False):
                                 style={
                                     "marginBottom": "5px",
                                     "fontSize": "1.1em",
-                                },  # Larger label text
+                                },
                             ),
                             dcc.Dropdown(
                                 id="data-record-dropdown",
                                 placeholder="Select Data Record",
                                 style={"width": "100%"},
+                                multi=True,
                             ),
                         ],
                         style={"width": "30%"},
@@ -94,7 +95,7 @@ def start_app(port: int = 8050, debug: bool = False):
                                 style={
                                     "marginBottom": "5px",
                                     "fontSize": "1.1em",
-                                },  # Larger label text
+                                },
                             ),
                             dcc.Dropdown(
                                 id="signal-dropdown",
@@ -106,7 +107,7 @@ def start_app(port: int = 8050, debug: bool = False):
                     ),
                 ],
             ),
-            html.Hr(style={"margin": "20px 0"}),  # Adjusted margin for better spacing
+            html.Hr(style={"margin": "20px 0"}),
             # File Metadata + Annotations + Signal Metadata
             html.Div(
                 style={
@@ -123,14 +124,14 @@ def start_app(port: int = 8050, debug: bool = False):
                                     "borderBottom": "1px solid #ccc",
                                     "marginBottom": "10px",
                                     "fontSize": "1.2em",
-                                },  # Larger title
+                                },
                             ),
                             html.Div(
                                 id="file-metadata",
                                 style={
                                     "fontSize": "1em",
                                     "lineHeight": "1.5",
-                                },  # Larger metadata text
+                                },
                             ),
                         ],
                         style={"width": "30%"},
@@ -143,14 +144,14 @@ def start_app(port: int = 8050, debug: bool = False):
                                     "borderBottom": "1px solid #ccc",
                                     "marginBottom": "10px",
                                     "fontSize": "1.2em",
-                                },  # Larger title
+                                },
                             ),
                             html.Div(
                                 id="signal-annotations",
                                 style={
                                     "fontSize": "1em",
                                     "lineHeight": "1.5",
-                                },  # Larger annotations text
+                                },
                             ),
                         ],
                         style={"width": "30%"},
@@ -163,14 +164,14 @@ def start_app(port: int = 8050, debug: bool = False):
                                     "borderBottom": "1px solid #ccc",
                                     "marginBottom": "10px",
                                     "fontSize": "1.2em",
-                                },  # Larger title
+                                },
                             ),
                             html.Div(
                                 id="signal-metadata",
                                 style={
                                     "fontSize": "1em",
                                     "lineHeight": "1.5",
-                                },  # Larger signal metadata text
+                                },
                             ),
                         ],
                         style={"width": "30%"},
@@ -183,7 +184,7 @@ def start_app(port: int = 8050, debug: bool = False):
                 style={
                     "padding": "10px",
                     "margin": "0px",
-                    "height": "450px",  # Slightly larger plot for better visibility
+                    "height": "450px",
                 },
             ),
         ],

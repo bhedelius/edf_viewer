@@ -11,8 +11,8 @@ A simple web app for visualizing EEG and other biosignal data stored in EDF (Eur
 ## 🚀 Features
 
 - Upload `.edf` files directly in the browser
-- Select data record and signal source
-- Display of file metadata, signal metadata, and annotations
+- Select data records and signal source
+- Display of file metadata and signal metadata
 - Interactive plots for signal data
 
 ---

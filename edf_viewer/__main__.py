@@ -1,5 +1,4 @@
 import argparse
-from pathlib import Path
 
 from edf_viewer.app import start_app
 
@@ -29,6 +28,4 @@ def main():
 
 
 if __name__ == "__main__":
-    print("START")
     main()
-    print("STOP")
