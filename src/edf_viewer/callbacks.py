@@ -1,6 +1,34 @@
+"""
+This module contains the callback functions and error handling logic for managing
+the upload and display of data from an EDF (European Data Format) file in a Dash web
+application.
+
+Functions:
+    - handle_error: Handles error events by displaying an alert with the error message.
+    - on_file_upload: Handles the file upload, parses the EDF file, and initializes
+      the UI elements, including dropdowns for selecting data records and signals.
+    - update_plot_and_metadata: Updates the plot and metadata based on the selected
+      data record and signal.
+
+Modules:
+    - plotly.graph_objs: Used for generating the interactive plot to visualize the
+      signal data.
+    - dash: Provides functionality for building the web app's interactivity, including
+      handling user input and updating components dynamically.
+    - edf_viewer.models.edf_models: Contains the `Experiment` and `SignalMetadata`
+      classes used to represent and extract data from the uploaded EDF file.
+
+Notes:
+    - The `on_file_upload` function expects a base64-encoded string representing the
+      contents of the uploaded EDF file.
+    - The `update_plot_and_metadata` function requires the uploaded file's base64
+      string to access the experiment data for generating the signal plot and related
+      metadata.
+"""
+
 from datetime import datetime
 
-import plotly.graph_objs as go
+import plotly.graph_objs as go  # type: ignore
 from dash import Input, Output, callback, html, set_props
 
 
@@ -8,6 +36,12 @@ from edf_viewer.models.edf_models import Experiment, SignalMetadata
 
 
 def handle_error(err: Exception):
+    """
+    Handles errors by setting an alert with the error message.
+
+    Args:
+        err (Exception): The error that occurred.
+    """
     set_props(
         "error-alert",
         {
@@ -55,10 +89,14 @@ def on_file_upload(uploaded_file: str) -> tuple:
 
     # Decode the uploaded file
     _, content_string = uploaded_file.split(",", 1)
-    experiment = Experiment.from_upload(content_string)  # Load the experiment object once
+    experiment = Experiment.from_base64(
+        content_string
+    )  # Load the experiment object once
 
     # Create dropdown options
-    data_record_options = [{"label": f"Record {i}", "value": i} for i in range(experiment.num_data_records)]
+    data_record_options = [
+        {"label": f"Record {i}", "value": i} for i in range(experiment.num_data_records)
+    ]
     signal_options = [
         {"label": sm.label, "value": i}
         for i, sm in enumerate(experiment.signal_metadatas)
@@ -73,7 +111,9 @@ def on_file_upload(uploaded_file: str) -> tuple:
     file_metadata = experiment.file_metadata
     dt_str = f"{file_metadata.start_date} {file_metadata.start_time}"
     dt = datetime.strptime(dt_str, "%d.%m.%y %H.%M.%S")
-    formatted_date = dt.strftime("%B %-d, %Y")  # American-style date (e.g., "April 15, 2025")
+    formatted_date = dt.strftime(
+        "%B %-d, %Y"
+    )  # American-style date (e.g., "April 15, 2025")
     formatted_time = dt.strftime("%-I:%M:%S %p")
     metadata_tuple = (
         f"Patient ID: {file_metadata.patient_id}",
@@ -82,7 +122,10 @@ def on_file_upload(uploaded_file: str) -> tuple:
         f"Start time: {formatted_time}",
     )
     metadata = [
-        html.P(line.rstrip(), style={"margin": "0", "padding": "0", "line-height": "1.2"}) for line in metadata_tuple
+        html.P(
+            line.rstrip(), style={"margin": "0", "padding": "0", "line-height": "1.2"}
+        )
+        for line in metadata_tuple
     ]
 
     return (
@@ -109,7 +152,7 @@ def update_plot_and_metadata(
     data_record_indexes: list[int] | int,
     signal_index: int | None,
     content_string: str,
-):
+) -> tuple:
     """
     Update the plot and metadata based on the selected data record and signal.
 
@@ -141,7 +184,7 @@ def update_plot_and_metadata(
         data_record_indexes = [data_record_indexes]
 
     # Load the experiment object
-    experiment = Experiment.from_upload(content_string)
+    experiment = Experiment.from_base64(content_string)
 
     # Extract data record and signal information
     time_series = experiment.get_time_series(signal_index)
@@ -180,7 +223,10 @@ def update_plot_and_metadata(
         f"Reserved: {signal_metadata.reserved}",
     )
     metadata = [
-        html.P(line.rstrip(), style={"margin": "0", "padding": "0", "line-height": "1.2"}) for line in metadata_tuple
+        html.P(
+            line.rstrip(), style={"margin": "0", "padding": "0", "line-height": "1.2"}
+        )
+        for line in metadata_tuple
     ]
 
     return figure, metadata

@@ -1,4 +1,31 @@
+# Python bytecode
 __pycache__/
-*.egg-info/
+
+# Virtual environments
+venv/
+env/
+*.env/
 .venv/
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+*.tar.gz
+*.whl
+
+# IDE files
 .vscode/
+.idea/
+
+# Sphinx documentation
+docs/_build
+
+# MyPy
+.mypy_cache/
+
+# Ruff
+.ruff_cache/
+
+# Darglint
+.darglint/

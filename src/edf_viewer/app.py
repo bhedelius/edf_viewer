@@ -1,11 +1,31 @@
+"""
+This module sets up and runs a Dash web application for visualizing and analyzing EDF (European Data Format) files.
+
+The application allows users to upload EDF files, select data records and signals, and view related signal metadata,
+annotations, and plots. The layout consists of file upload components, dropdowns for selecting data records and signals,
+and display areas for metadata, annotations, and signal plots.
+
+Functions:
+    start_app(port: int = 8050, debug: bool = False):
+        Initializes and starts the Dash application, configuring the layout and defining the structure of the user interface.
+        The app allows interaction with EDF files and displays metadata, annotations, and visualizations.
+
+    Args:
+        port (int): The port on which the app will run. Defaults to 8050.
+        debug (bool): If True, enables debugging. Defaults to False.
+"""
+
 import dash
-import dash_bootstrap_components as dbc
+import dash_bootstrap_components as dbc  # type: ignore
 from dash import dcc, html
 
-from edf_viewer.callbacks import on_file_upload, update_plot_and_metadata  # noqa: F401 these are used implicitly
+from edf_viewer.callbacks import (
+    on_file_upload,  # noqa: F401 used implicitly
+    update_plot_and_metadata,  # noqa: F401 used implicitly
+)
 
 
-def start_app(port: int = 8050, debug: bool = False):
+def start_app(port: int = 8050, debug: bool = False) -> None:
     """
     Initialize and start the Dash web application for visualizing EDF files.
 

@@ -101,6 +101,26 @@ Each data record contains actual signal samples for all channels, stored consecu
 
 Each sample is a 2-byte (16-bit) little-endian signed integer.
 
+## ⚙️ Design & Parsing with Pydantic
+
+The EDF Viewer uses **Pydantic** for parsing and validating the EDF data, ensuring that the file is correctly structured and the metadata adheres to the expected format. The parsing design follows a clean and modular approach:
+
+1. **Data Models with Pydantic**:  
+   We define Pydantic models that correspond to the various records and sections in the EDF file. These models define the structure and types of each field, providing automatic validation when loading data.
+
+2. **Parsing EDF Header**:  
+   The header of the EDF file contains essential information about the file, including the number of signals and metadata. Pydantic models are used to extract this information from the raw binary data and validate that the values are correct.
+
+3. **Signal and File Metadata**:  
+   Metadata related to both the file and each signal is parsed into specific Pydantic models. This ensures that all fields are properly typed and validated, such as:
+   - **File metadata** (e.g., patient information, recording time, number of signals)
+   - **Signal metadata** (e.g., signal labels, physical units, sample rates)
+
+4. **Custom Binary Reader**:  
+   A custom binary reader is responsible for reading the raw EDF file byte-by-byte, using Pydantic models to store the parsed data. This binary reader handles both ASCII and binary sections of the EDF file efficiently.
+
+By using Pydantic's strong typing and validation features, the EDF Viewer ensures that the data parsed from EDF files is accurate and consistent, minimizing the chance of errors when processing or displaying the data.
+
 ## 📄 License
 
 [MIT License](LICENSE)
